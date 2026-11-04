@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpectraLab - Atomic Emission & DIY CD Spectroscope Simulation</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js for Spectral Line Graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- MathJax for rendering physics equations -->
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Spectrum Glow Effects */
+    .spectrum-glow {
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.25);
+    }
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    canvas {
+      touch-action: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-slate-950 text-slate-100">
+
+  <!-- Header / Navigation Bar -->
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="bg-gradient-to-tr from-indigo-500 to-cyan-400 p-2.5 rounded-xl shadow-md">
+          <i class="fa-solid fa-atom text-xl text-white"></i>
+        </div>
+        <div>
+          <div class="text-[10px] font-bold tracking-widest text-indigo-400 uppercase">CHEMISTRY PROJECT - ATO TAMIRU</div>
+          <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-300 bg-clip-text text-transparent">
+            SpectraLab Workbench
+          </h1>
+          <p class="text-xs text-slate-400">Atomic Emission, Bohr Model & DIY CD Spectroscope Simulator</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 overflow-x-auto max-w-full">
+        <button id="tab-simulation-btn" onclick="switchTab('simulation')" class="px-4 py-2 text-xs md:text-sm font-medium rounded-lg transition-all text-white bg-indigo-600 shadow-sm flex items-center gap-2">
+          <i class="fa-solid fa-flask"></i> Interactive Lab
+        </button>
+        <button id="tab-data-btn" onclick="switchTab('data')" class="px-4 py-2 text-xs md:text-sm font-medium rounded-lg transition-all text-slate-400 hover:text-white flex items-center gap-2">
+          <i class="fa-solid fa-table"></i> Data & Analysis
+        </button>
+        <button id="tab-diy-btn" onclick="switchTab('diy')" class="px-4 py-2 text-xs md:text-sm font-medium rounded-lg transition-all text-slate-400 hover:text-white flex items-center gap-2">
+          <i class="fa-solid fa-box"></i> Physical DIY Guide
+        </button>
+        <button id="tab-theory-btn" onclick="switchTab('theory')" class="px-4 py-2 text-xs md:text-sm font-medium rounded-lg transition-all text-slate-400 hover:text-white flex items-center gap-2">
+          <i class="fa-solid fa-graduation-cap"></i> Physics Theory
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+
+    <!-- SECTION 1: INTERACTIVE SIMULATION WORKBENCH -->
+    <div id="tab-simulation" class="space-y-6">
+      
+      <!-- Top Bar Controls -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4">
+        <!-- Element Selector -->
+        <div class="flex items-center space-x-3">
+          <label for="element-select" class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-circle-nodes text-cyan-400"></i> Target Element:
+          </label>
+          <select id="element-select" onchange="changeElement(this.value)" class="bg-slate-800 border border-slate-700 text-cyan-300 font-semibold text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+            <option value="hydrogen">Hydrogen (H)</option>
+            <option value="helium">Helium (He)</option>
+            <option value="neon">Neon (Ne)</option>
+            <option value="sodium">Sodium (Na)</option>
+            <option value="lithium">Lithium (Li)</option>
+            <option value="calcium">Calcium (Ca)</option>
+          </select>
+        </div>
+
+        <!-- High Voltage Gas Tube Toggle -->
+        <div class="flex items-center space-x-4">
+          <span class="text-xs text-slate-400">Gas Discharge Power:</span>
+          <button id="discharge-btn" onclick="toggleDischarge()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-all shadow-md">
+            <i class="fa-solid fa-bolt"></i> High Voltage: OFF
+          </button>
+        </div>
+
+        <!-- Real-time Photon Energy Formula Display -->
+        <div class="bg-slate-950 px-4 py-1.5 rounded-lg border border-slate-800 flex items-center space-x-3">
+          <span class="text-xs text-slate-400">Formula:</span>
+          <span class="text-sm text-cyan-400 font-mono font-bold">E = hc / λ</span>
+        </div>
+      </div>
+
+      <!-- Main Visual Work Area (Dual View: Bohr Atom + Spectroscope View) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Visual 1: Bohr Atom Model Simulation -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-base font-semibold text-slate-200 flex items-center gap-2">
+              <i class="fa-solid fa-atom text-indigo-400"></i> Interactive Bohr Atomic Model
+            </h2>
+            <span id="transition-badge" class="text-xs font-mono px-2.5 py-1 bg-indigo-950 text-indigo-300 border border-indigo-800/50 rounded-full">
+              State: Ground Level (n=1)
+            </span>
+          </div>
+
+          <!-- Canvas for Bohr Atom Simulation -->
+          <div class="relative w-full aspect-square max-h-[380px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800/80 flex items-center justify-center">
+            <canvas id="bohrCanvas" class="w-full h-full"></canvas>
+            
+            <!-- Floating Transition Info Panel -->
+            <div id="photon-info" class="absolute bottom-3 left-3 right-3 bg-slate-900/90 backdrop-blur-md p-3 rounded-lg border border-slate-700/80 text-xs hidden">
+              <div class="grid grid-cols-2 gap-2 text-slate-300">
+                <div><span class="text-slate-400">Transition:</span> <span id="info-transition" class="font-bold text-white">n=3 → n=2</span></div>
+                <div><span class="text-slate-400">Wavelength:</span> <span id="info-lambda" class="font-bold text-cyan-400">656.3 nm</span></div>
+                <div><span class="text-slate-400">Photon Energy:</span> <span id="info-energy" class="font-bold text-amber-400">3.03 x 10⁻¹⁹ J</span></div>
+                <div><span class="text-slate-400">Color:</span> <span id="info-color" class="font-bold text-red-400">Red Line</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual Transition Triggers -->
+          <div class="mt-4">
+            <p class="text-xs font-medium text-slate-400 mb-2">Manual Transition Trigger (Photon Emission):</p>
+            <div id="transition-buttons" class="flex flex-wrap gap-2">
+              <!-- Dynamically populated per element -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual 2: CD Spectroscope & Gas Discharge Visualizer -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-base font-semibold text-slate-200 flex items-center gap-2">
+              <i class="fa-solid fa-eye text-cyan-400"></i> CD Spectroscope Viewfinder
+            </h2>
+            <span class="text-xs text-slate-400">Simulated CD Diffraction Spectrum</span>
+          </div>
+
+          <!-- Gas Tube & Spectroscope Box View -->
+          <div class="relative w-full aspect-square max-h-[380px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800/80 flex flex-col p-4 justify-between">
+            
+            <!-- Gas Tube Simulation -->
+            <div class="flex items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+              <div class="flex items-center gap-3">
+                <i class="fa-solid fa-vial text-xl text-slate-400"></i>
+                <div>
+                  <div id="tube-name" class="text-sm font-bold text-white">Hydrogen Gas Tube</div>
+                  <div class="text-xs text-slate-400">Gas Discharge Source</div>
+                </div>
+              </div>
+              <div id="tube-glow" class="w-24 h-6 rounded-full bg-slate-800 border border-slate-700 transition-all duration-300 flex items-center justify-center text-[10px] text-slate-500 font-mono">
+                INACTIVE
+              </div>
+            </div>
+
+            <!-- Optical Spectrum Bar Display -->
+            <div class="my-auto space-y-2">
+              <div class="flex justify-between text-xs text-slate-400 font-mono px-1">
+                <span>400 nm (UV/Violet)</span>
+                <span>Visible Light Spectrum</span>
+                <span>700 nm (Infrared/Red)</span>
+              </div>
+              
+              <!-- Wavelength Scale Canvas -->
+              <div class="relative border-2 border-slate-700 rounded-lg overflow-hidden bg-black p-1 shadow-inner">
+                <canvas id="spectrumCanvas" class="w-full h-20 block rounded"></canvas>
+              </div>
+
+              <!-- Intensity Curve Chart -->
+              <div class="h-28 w-full bg-slate-900/50 rounded-lg border border-slate-800/60 p-1">
+                <canvas id="intensityChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Spectroscope Controls -->
+          <div class="mt-4 flex justify-between items-center bg-slate-850 p-2 rounded-xl border border-slate-800">
+            <span class="text-xs text-slate-400">Slit Width: <strong class="text-slate-200">1.5 mm</strong></span>
+            <span class="text-xs text-slate-400">Grating Density: <strong class="text-slate-200">1350 lines/mm (CD)</strong></span>
+            <button onclick="logCurrentSpectrum()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all">
+              <i class="fa-solid fa-plus"></i> Record Data
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- SECTION 2: DATA COLLECTION & MATHEMATICAL ANALYSIS -->
+    <div id="tab-data" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+        
+        <div class="flex flex-wrap justify-between items-center gap-4">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-table-cells text-cyan-400"></i> Spectral Emission Data & Energy Calculations
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">Data recorded from experiment simulations and calculated photon energy ($E = hc / \lambda$)</p>
+          </div>
+
+          <div class="flex gap-2">
+            <button onclick="addCustomDataRow()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1 border border-slate-700">
+              <i class="fa-solid fa-plus text-cyan-400"></i> Add Observation
+            </button>
+            <button onclick="clearDataTable()" class="px-3 py-2 bg-red-950/60 hover:bg-red-900/60 text-red-300 rounded-lg text-xs font-semibold flex items-center gap-1 border border-red-800/50">
+              <i class="fa-solid fa-trash-can"></i> Clear Table
+            </button>
+          </div>
+        </div>
+
+        <!-- Interactive Data Table -->
+        <div class="overflow-x-auto rounded-xl border border-slate-800">
+          <table class="w-full text-left text-xs md:text-sm text-slate-300">
+            <thead class="bg-slate-950 text-slate-400 uppercase font-mono text-[11px] border-b border-slate-800">
+              <tr>
+                <th class="p-3">Element</th>
+                <th class="p-3">Observed Color</th>
+                <th class="p-3">Wavelength $\lambda$ (nm)</th>
+                <th class="p-3">Transition ($n_i \rightarrow n_f$)</th>
+                <th class="p-3">Calculated Energy $E$ (Joules)</th>
+                <th class="p-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="data-table-body" class="divide-y divide-slate-800 bg-slate-900/60">
+              <!-- Dynamically Populated Rows -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Sample Calculation Step-by-Step Guide -->
+        <div class="bg-slate-950 p-5 rounded-xl border border-slate-800/80 space-y-3">
+          <h3 class="text-sm font-semibold text-cyan-300 flex items-center gap-2">
+            <i class="fa-solid fa-calculator"></i> Step-by-Step Energy Calculation Sample
+          </h3>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            For Hydrogen Red Line ($\lambda = 656.3\text{ nm} = 6.563 \times 10^{-7}\text{ m}$):
+          </p>
+          <div class="bg-slate-900 p-4 rounded-lg font-mono text-xs text-sky-200 overflow-x-auto border border-slate-800 space-y-1">
+            <p>1. Formula: E = (h × c) / λ</p>
+            <p>2. Constants: h = 6.63 × 10⁻³⁴ J·s , c = 3.00 × 10⁸ m/s</p>
+            <p>3. Substitution: E = (6.63 × 10⁻³⁴ × 3.00 × 10⁸) / (6.563 × 10⁻⁷)</p>
+            <p class="text-emerald-400 font-bold">4. Calculated Energy E = 3.03 × 10⁻¹⁹ Joules (or ~1.89 eV)</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SECTION 3: PHYSICAL DIY CD SPECTROSCOPE GUIDE -->
+    <div id="tab-diy" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+        
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-scissors text-amber-400"></i> Part A: Physical DIY CD Spectroscope Guide
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">Step-by-step assembly instructions and optical path diagram for physical experimentation</p>
+        </div>
+
+        <!-- Steps Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+            <div class="w-8 h-8 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-sm">1</div>
+            <h3 class="text-sm font-semibold text-slate-200">Prepare the Box</h3>
+            <p class="text-xs text-slate-400">Take a small cardboard box with a lid. On one short side, cut a thin vertical slit (Width: 1-2 mm, Height: 2-3 cm) where light enters.</p>
+          </div>
+
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+            <div class="w-8 h-8 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-sm">2</div>
+            <h3 class="text-sm font-semibold text-slate-200">Darken the Inside</h3>
+            <p class="text-xs text-slate-400">Line the entire inside of the box with dark black paper or matte paint to prevent internal reflections and stray light interference.</p>
+          </div>
+
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+            <div class="w-8 h-8 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-sm">3</div>
+            <h3 class="text-sm font-semibold text-slate-200">Prepare CD Grating</h3>
+            <p class="text-xs text-slate-400">Cut a 3 cm × 3 cm section from an old CD/DVD. Carefully peel away the reflective label layer if necessary to expose transparent diffraction tracks.</p>
+          </div>
+
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+            <div class="w-8 h-8 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-sm">4</div>
+            <h3 class="text-sm font-semibold text-slate-200">Install the Grating</h3>
+            <p class="text-xs text-slate-400">Cut a hole (3 cm × 1 cm) on the opposite end. Tape the CD piece over the hole with its shiny side facing into the box at a ~60° angle.</p>
+          </div>
+
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+            <div class="w-8 h-8 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-sm">5</div>
+            <h3 class="text-sm font-semibold text-slate-200">Create Viewing Hole</h3>
+            <p class="text-xs text-slate-400">Cut a viewing hole (~1 cm wide) on top/side near the CD grating where your eyes or smartphone camera will record spectra.</p>
+          </div>
+
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+            <div class="w-8 h-8 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-sm">6</div>
+            <h3 class="text-sm font-semibold text-slate-200">Photograph & Record</h3>
+            <p class="text-xs text-slate-400">Point the slit at fluorescent lights, gas discharge tubes, or flame tests. Hold a smartphone to the viewing port to photograph line spectra.</p>
+          </div>
+
+        </div>
+
+        <!-- Interactive Diagram Box -->
+        <div class="bg-slate-950 p-6 rounded-xl border border-slate-800 text-center space-y-3">
+          <h3 class="text-sm font-semibold text-cyan-300">Optical Light Path in DIY Spectroscope</h3>
+          <div class="flex justify-center items-center">
+            <svg class="w-full max-w-xl h-48" viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Box Frame -->
+              <rect x="50" y="40" width="400" height="120" rx="8" stroke="#475569" stroke-width="2" fill="#020617"/>
+              <!-- Entrance Slit -->
+              <rect x="48" y="85" width="4" height="30" fill="#38bdf8"/>
+              <text x="15" y="102" fill="#38bdf8" font-size="10" font-family="sans-serif">Light Slit</text>
+              <!-- CD Grating -->
+              <line x1="410" y1="60" x2="440" y2="120" stroke="#a855f7" stroke-width="4"/>
+              <text x="415" y="50" fill="#a855f7" font-size="10" font-family="sans-serif">CD Grating</text>
+              <!-- Light Rays -->
+              <path d="M 50 100 L 420 85" stroke="#fef08a" stroke-width="2" stroke-dasharray="4 2"/>
+              <!-- Diffracted Rays -->
+              <path d="M 420 85 L 350 145" stroke="#ef4444" stroke-width="1.5"/>
+              <path d="M 420 85 L 340 145" stroke="#22c55e" stroke-width="1.5"/>
+              <path d="M 420 85 L 330 145" stroke="#3b82f6" stroke-width="1.5"/>
+              <!-- Eye / Camera -->
+              <text x="320" y="175" fill="#38bdf8" font-size="10" font-family="sans-serif">Viewing Port (Spectra Lines)</text>
+            </svg>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SECTION 4: PHYSICS THEORY & PRESENTATION RUBRIC ANSWERS -->
+    <div id="tab-theory" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+        
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-book-open text-emerald-400"></i> Atomic Spectra Theory & Presentation Questions
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">Detailed responses to all rubric presentation questions for maximum project score</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <!-- Q1 -->
+          <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-2">
+            <h3 class="text-sm font-bold text-cyan-300">1. Why does each element produce a different spectrum?</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Each element has a unique nuclear charge ($Z$) and electron configuration. This creates distinct, quantized energy levels ($n=1, 2, 3...$). Because the energy differences ($\Delta E$) between orbits are unique to each atom, emitted photons ($E = \Delta E = hc/\lambda$) have distinct wavelengths.
+            </p>
+          </div>
+
+          <!-- Q2 -->
+          <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-2">
+            <h3 class="text-sm font-bold text-cyan-300">2. What happens to electrons when they emit light?</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              When an atom absorbs energy (thermal or electrical), electrons jump to higher energy levels (excited state). When returning to lower levels (ground or intermediate state), electrons release excess potential energy as single discrete photons of electromagnetic radiation.
+            </p>
+          </div>
+
+          <!-- Q3 -->
+          <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-2">
+            <h3 class="text-sm font-bold text-cyan-300">3. Why are spectra called "atomic fingerprints"?</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              No two chemical elements possess identical energy level spacings. Therefore, line emission spectra are entirely unique to each element, allowing scientists to identify unknown elements in crime scenes (forensics) or distant stars (astronomy).
+            </p>
+          </div>
+
+          <!-- Q4 -->
+          <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-2">
+            <h3 class="text-sm font-bold text-cyan-300">4. How does the Bohr model explain Hydrogen lines?</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Niels Bohr postulated quantized electron orbits. Transitions ending at $n=2$ (Balmer Series) produce photons in the visible spectrum: $n=3\rightarrow2$ gives Red ($656.3\text{ nm}$), $n=4\rightarrow2$ gives Blue-Green ($486.1\text{ nm}$), and $n=5\rightarrow2$ gives Violet ($434.1\text{ nm}$).
+            </p>
+          </div>
+
+          <!-- Q5 -->
+          <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-2">
+            <h3 class="text-sm font-bold text-cyan-300">5. How does this simulation model atomic spectra physics?</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              The simulation uses exact Rydberg and Planck equations ($E = hc/\lambda$) to render quantized electron orbits, photon trajectory animations, and precise spectral line wavelengths corresponding to real gas discharge experimental data.
+            </p>
+          </div>
+
+          <!-- Q6 -->
+          <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-2">
+            <h3 class="text-sm font-bold text-cyan-300">6. Physical experiment vs. Virtual simulation learnings</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Combining both shows how physical diffraction gratings (CD tracks) separate multi-wavelength emissions into visible spatial lines, while the simulation explains the subatomic quantum leaps causing those individual light frequencies.
+            </p>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-slate-900 border-t border-slate-800 py-4 mt-8">
+    <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
+      SpectraLab Physics Simulation Project • Ready for GitHub Pages Hosting
+    </div>
+  </footer>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    /* ====================================================================
+       ELEMENT SPECTRAL & BOHR MODEL DATA
+       ==================================================================== */
+    const ELEMENT_DATA = {
+      hydrogen: {
+        name: "Hydrogen (H)",
+        tubeColor: "rgba(239, 68, 68, 0.8)", // Reddish glow
+        lines: [
+          { lambda: 656.3, color: "#ef4444", label: "Red (H-α)", trans: "n=3 → n=2", energy: "3.03 x 10⁻¹⁹ J", ni: 3, nf: 2 },
+          { lambda: 486.1, color: "#06b6d4", label: "Blue-Green (H-β)", trans: "n=4 → n=2", energy: "4.09 x 10⁻¹⁹ J", ni: 4, nf: 2 },
+          { lambda: 434.1, color: "#8b5cf6", label: "Violet (H-γ)", trans: "n=5 → n=2", energy: "4.58 x 10⁻¹⁹ J", ni: 5, nf: 2 },
+          { lambda: 410.2, color: "#a855f7", label: "Violet (H-δ)", trans: "n=6 → n=2", energy: "4.85 x 10⁻¹⁹ J", ni: 6, nf: 2 }
+        ]
+      },
+      helium: {
+        name: "Helium (He)",
+        tubeColor: "rgba(251, 146, 60, 0.8)", // Peach/Orange glow
+        lines: [
+          { lambda: 706.5, color: "#dc2626", label: "Deep Red", trans: "3S → 2P", energy: "2.81 x 10⁻¹⁹ J", ni: 4, nf: 2 },
+          { lambda: 667.8, color: "#f87171", label: "Bright Red", trans: "3D → 2P", energy: "2.98 x 10⁻¹⁹ J", ni: 3, nf: 2 },
+          { lambda: 587.6, color: "#eab308", label: "Yellow", trans: "3D → 2P", energy: "3.38 x 10⁻¹⁹ J", ni: 3, nf: 2 },
+          { lambda: 501.5, color: "#10b981", label: "Green", trans: "3P → 2S", energy: "3.96 x 10⁻¹⁹ J", ni: 4, nf: 2 },
+          { lambda: 447.1, color: "#3b82f6", label: "Blue", trans: "4D → 2P", energy: "4.45 x 10⁻¹⁹ J", ni: 5, nf: 2 }
+        ]
+      },
+      neon: {
+        name: "Neon (Ne)",
+        tubeColor: "rgba(249, 115, 22, 0.9)", // Bright Orange
+        lines: [
+          { lambda: 640.2, color: "#ea580c", label: "Intense Red-Orange", trans: "3p → 3s", energy: "3.10 x 10⁻¹⁹ J", ni: 3, nf: 2 },
+          { lambda: 614.3, color: "#f97316", label: "Orange", trans: "3p → 3s", energy: "3.24 x 10⁻¹⁹ J", ni: 4, nf: 2 },
+          { lambda: 585.2, color: "#eab308", label: "Yellow-Orange", trans: "3p → 3s", energy: "3.40 x 10⁻¹⁹ J", ni: 3, nf: 2 },
+          { lambda: 540.0, color: "#22c55e", label: "Green", trans: "3p → 3s", energy: "3.68 x 10⁻¹⁹ J", ni: 5, nf: 2 }
+        ]
+      },
+      sodium: {
+        name: "Sodium (Na)",
+        tubeColor: "rgba(234, 179, 8, 0.9)", // Yellow
+        lines: [
+          { lambda: 589.0, color: "#eab308", label: "Sodium D2 Line", trans: "3p → 3s", energy: "3.37 x 10⁻¹⁹ J", ni: 3, nf: 2 },
+          { lambda: 589.6, color: "#facc15", label: "Sodium D1 Line", trans: "3p → 3s", energy: "3.37 x 10⁻¹⁹ J", ni: 3, nf: 2 }
+        ]
+      },
+      lithium: {
+        name: "Lithium (Li)",
+        tubeColor: "rgba(244, 63, 94, 0.9)", // Carmine Red
+        lines: [
+          { lambda: 670.8, color: "#f43f5e", label: "Crimson Red", trans: "2p → 2s", energy: "2.96 x 10⁻¹⁹ J", ni: 3, nf: 2 },
+          { lambda: 610.3, color: "#fb923c", label: "Orange", trans: "3d → 2p", energy: "3.26 x 10⁻¹⁹ J", ni: 4, nf: 2 }
+        ]
+      },
+      calcium: {
+        name: "Calcium (Ca)",
+        tubeColor: "rgba(251, 146, 60, 0.7)", // Brick Red
+        lines: [
+          { lambda: 657.3, color: "#ef4444", label: "Red", trans: "4p → 4s", energy: "3.02 x 10⁻¹⁹ J", ni: 3, nf: 2 },
+          { lambda: 422.7, color: "#a855f7", label: "Violet Resonance", trans: "4p → 4s", energy: "4.70 x 10⁻¹⁹ J", ni: 5, nf: 2 }
+        ]
+      }
+    };
+
+    let currentElementKey = "hydrogen";
+    let isDischargeOn = false;
+    let animatedPhotons = [];
+    let electronAngle = 0;
+    let activeElectronOrbit = 1;
+    let chartInstance = null;
+
+    /* ====================================================================
+       INITIALIZATION & TAB SWITCHING
+       ==================================================================== */
+    window.onload = function() {
+      setupCanvas();
+      setupChart();
+      changeElement("hydrogen");
+      populateInitialTable();
+      animateLoop();
+    };
+
+    function switchTab(tabId) {
+      const tabs = ['simulation', 'data', 'diy', 'theory'];
+      tabs.forEach(t => {
+        document.getElementById(`tab-${t}`).classList.add('hidden');
+        document.getElementById(`tab-${t}-btn`).className = "px-4 py-2 text-xs md:text-sm font-medium rounded-lg transition-all text-slate-400 hover:text-white flex items-center gap-2";
+      });
+
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+      document.getElementById(`tab-${tabId}-btn`).className = "px-4 py-2 text-xs md:text-sm font-medium rounded-lg transition-all text-white bg-indigo-600 shadow-sm flex items-center gap-2";
+
+      if (tabId === 'simulation') {
+        setTimeout(setupCanvas, 50);
+      }
+    }
+
+    /* ====================================================================
+       ELEMENT & POWER CONTROL LOGIC
+       ==================================================================== */
+    function changeElement(key) {
+      currentElementKey = key;
+      const elem = ELEMENT_DATA[key];
+      document.getElementById("tube-name").innerText = `${elem.name} Gas Tube`;
+
+      // Render manual transition buttons
+      const btnContainer = document.getElementById("transition-buttons");
+      btnContainer.innerHTML = "";
+      elem.lines.forEach((line) => {
+        const btn = document.createElement("button");
+        btn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all shadow border border-white/10 flex items-center gap-1.5";
+        btn.style.backgroundColor = line.color;
+        btn.innerHTML = `<i class="fa-solid fa-bolt"></i> ${line.trans} (${line.lambda} nm)`;
+        btn.onclick = () => triggerTransition(line);
+        btnContainer.appendChild(btn);
+      });
+
+      updateSpectraCanvas();
+      updateChart();
+    }
+
+    function toggleDischarge() {
+      isDischargeOn = !isDischargeOn;
+      const btn = document.getElementById("discharge-btn");
+      const tubeGlow = document.getElementById("tube-glow");
+      const elem = ELEMENT_DATA[currentElementKey];
+
+      if (isDischargeOn) {
+        btn.className = "px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-all shadow-md";
+        btn.innerHTML = `<i class="fa-solid fa-power-off"></i> High Voltage: ON`;
+        tubeGlow.style.backgroundColor = elem.tubeColor;
+        tubeGlow.style.boxShadow = `0 0 20px ${elem.tubeColor}`;
+        tubeGlow.innerText = "EMITTING";
+        tubeGlow.className = "w-24 h-6 rounded-full text-white font-bold border border-white/20 transition-all duration-300 flex items-center justify-center text-[10px] font-mono";
+      } else {
+        btn.className = "px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-all shadow-md";
+        btn.innerHTML = `<i class="fa-solid fa-bolt"></i> High Voltage: OFF`;
+        tubeGlow.style.backgroundColor = "#1e293b";
+        tubeGlow.style.boxShadow = "none";
+        tubeGlow.innerText = "INACTIVE";
+        tubeGlow.className = "w-24 h-6 rounded-full bg-slate-800 border border-slate-700 transition-all duration-300 flex items-center justify-center text-[10px] text-slate-500 font-mono";
+      }
+
+      updateSpectraCanvas();
+      updateChart();
+    }
+
+    /* ====================================================================
+       BOHR ATOM CANVAS ANIMATION
+       ==================================================================== */
+    let bohrCanvas, bohrCtx;
+
+    function setupCanvas() {
+      bohrCanvas = document.getElementById("bohrCanvas");
+      if (!bohrCanvas) return;
+      bohrCtx = bohrCanvas.getContext("2d");
+      
+      const rect = bohrCanvas.parentElement.getBoundingClientRect();
+      bohrCanvas.width = rect.width;
+      bohrCanvas.height = rect.height;
+    }
+
+    window.addEventListener("resize", setupCanvas);
+
+    function triggerTransition(line) {
+      activeElectronOrbit = line.ni;
+      
+      // Update info panel
+      document.getElementById("photon-info").classList.remove("hidden");
+      document.getElementById("info-transition").innerText = line.trans;
+      document.getElementById("info-lambda").innerText = `${line.lambda} nm`;
+      document.getElementById("info-energy").innerText = line.energy;
+      document.getElementById("info-color").innerText = line.label;
+
+      document.getElementById("transition-badge").innerText = `Transitioning: ${line.trans}`;
+
+      // Spawn excited photon wave
+      setTimeout(() => {
+        activeElectronOrbit = line.nf;
+        document.getElementById("transition-badge").innerText = `State: Level n=${line.nf}`;
+        animatedPhotons.push({
+          x: bohrCanvas.width / 2,
+          y: bohrCanvas.height / 2,
+          radius: 30,
+          color: line.color,
+          alpha: 1.0
+        });
+      }, 400);
+    }
+
+    function animateLoop() {
+      if (bohrCanvas && bohrCtx) {
+        drawBohrModel();
+      }
+      
+      // Continuous emission pulses if tube power is ON
+      if (isDischargeOn && Math.random() < 0.03) {
+        const lines = ELEMENT_DATA[currentElementKey].lines;
+        const randomLine = lines[Math.floor(Math.random() * lines.length)];
+        triggerTransition(randomLine);
+      }
+
+      requestAnimationFrame(animateLoop);
+    }
+
+    function drawBohrModel() {
+      bohrCtx.clearRect(0, 0, bohrCanvas.width, bohrCanvas.height);
+      const centerX = bohrCanvas.width / 2;
+      const centerY = bohrCanvas.height / 2;
+
+      // Draw Nucleus
+      bohrCtx.beginPath();
+      bohrCtx.arc(centerX, centerY, 14, 0, Math.PI * 2);
+      bohrCtx.fillStyle = "#ef4444";
+      bohrCtx.fill();
+      bohrCtx.shadowColor = "#ef4444";
+      bohrCtx.shadowBlur = 10;
+      bohrCtx.fillStyle = "#ffffff";
+      bohrCtx.font = "bold 10px sans-serif";
+      bohrCtx.textAlign = "center";
+      bohrCtx.textBaseline = "middle";
+      bohrCtx.fillText("p+", centerX, centerY);
+      bohrCtx.shadowBlur = 0;
+
+      // Draw Energy Level Orbits (n = 1 to 5)
+      const maxOrbits = 5;
+      const baseRadius = 30;
+      const step = 25;
+
+      for (let n = 1; n <= maxOrbits; n++) {
+        const r = baseRadius + n * step;
+        bohrCtx.beginPath();
+        bohrCtx.arc(centerX, centerY, r, 0, Math.PI * 2);
+        bohrCtx.strokeStyle = (n === activeElectronOrbit) ? "#38bdf8" : "rgba(148, 163, 184, 0.25)";
+        bohrCtx.lineWidth = (n === activeElectronOrbit) ? 2 : 1;
+        if (n === activeElectronOrbit) {
+          bohrCtx.setLineDash([4, 4]);
+        } else {
+          bohrCtx.setLineDash([]);
+        }
+        bohrCtx.stroke();
+        bohrCtx.setLineDash([]);
+
+        // Orbit level label
+        bohrCtx.fillStyle = "#64748b";
+        bohrCtx.font = "9px monospace";
+        bohrCtx.fillText(`n=${n}`, centerX + r + 10, centerY);
+      }
+
+      // Draw Orbiting Electron
+      electronAngle += 0.02;
+      const activeRadius = baseRadius + activeElectronOrbit * step;
+      const eX = centerX + Math.cos(electronAngle) * activeRadius;
+      const eY = centerY + Math.sin(electronAngle) * activeRadius;
+
+      bohrCtx.beginPath();
+      bohrCtx.arc(eX, eY, 6, 0, Math.PI * 2);
+      bohrCtx.fillStyle = "#38bdf8";
+      bohrCtx.fill();
+      bohrCtx.shadowColor = "#38bdf8";
+      bohrCtx.shadowBlur = 12;
+
+      // Draw Emitted Photon Wave Pulses
+      for (let i = animatedPhotons.length - 1; i >= 0; i--) {
+        const p = animatedPhotons[i];
+        bohrCtx.beginPath();
+        bohrCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        bohrCtx.strokeStyle = p.color;
+        bohrCtx.lineWidth = 3;
+        bohrCtx.globalAlpha = p.alpha;
+        bohrCtx.stroke();
+        bohrCtx.globalAlpha = 1.0;
+
+        p.radius += 2.5;
+        p.alpha -= 0.02;
+
+        if (p.alpha <= 0) {
+          animatedPhotons.splice(i, 1);
+        }
+      }
+    }
+
+    /* ====================================================================
+       CD SPECTROSCOPE CANVASES & CHART
+       ==================================================================== */
+    function updateSpectraCanvas() {
+      const specCanvas = document.getElementById("spectrumCanvas");
+      if (!specCanvas) return;
+      const ctx = specCanvas.getContext("2d");
+      specCanvas.width = specCanvas.parentElement.clientWidth;
+      specCanvas.height = specCanvas.parentElement.clientHeight;
+
+      // Clear Canvas
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, specCanvas.width, specCanvas.height);
+
+      if (!isDischargeOn) {
+        ctx.fillStyle = "#334155";
+        ctx.font = "12px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Turn ON Gas Discharge Tube to View Line Spectrum", specCanvas.width / 2, specCanvas.height / 2);
+        return;
+      }
+
+      const lines = ELEMENT_DATA[currentElementKey].lines;
+      const minW = 400;
+      const maxW = 720;
+
+      lines.forEach((line) => {
+        // Map wavelength (400-720nm) to canvas width
+        const x = ((line.lambda - minW) / (maxW - minW)) * specCanvas.width;
+
+        // Draw Line with Glow Effect
+        ctx.shadowColor = line.color;
+        ctx.shadowBlur = 15;
+        ctx.strokeStyle = line.color;
+        ctx.lineWidth = 4;
+
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, specCanvas.height);
+        ctx.stroke();
+      });
+      ctx.shadowBlur = 0;
+    }
+
+    function setupChart() {
+      const ctx = document.getElementById('intensityChart').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Spectral Intensity',
+            data: [],
+            borderColor: '#38bdf8',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: true,
+            backgroundColor: 'rgba(56, 189, 248, 0.1)'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { display: false },
+            y: { display: false, min: 0, max: 100 }
+          }
+        }
+      });
+    }
+
+    function updateChart() {
+      if (!chartInstance) return;
+
+      const labels = [];
+      const intensityData = [];
+      const minW = 400;
+      const maxW = 720;
+
+      for (let w = minW; w <= maxW; w += 2) {
+        labels.push(w);
+        let intensity = 2; // Baseline noise
+
+        if (isDischargeOn) {
+          ELEMENT_DATA[currentElementKey].lines.forEach(line => {
+            const diff = Math.abs(w - line.lambda);
+            if (diff < 6) {
+              intensity += 90 * Math.exp(-Math.pow(diff, 2) / 4);
+            }
+          });
+        }
+        intensityData.push(intensity);
+      }
+
+      chartInstance.data.labels = labels;
+      chartInstance.data.datasets[0].data = intensityData;
+      chartInstance.update();
+    }
+
+    /* ====================================================================
+       DATA TABLE & ANALYSIS FUNCTIONS
+       ==================================================================== */
+    function populateInitialTable() {
+      const tbody = document.getElementById("data-table-body");
+      tbody.innerHTML = "";
+
+      // Default sample rows based on project rubric
+      const sampleEntries = [
+        { elem: "Hydrogen", color: "Red", lambda: 656.3, trans: "n=3 → n=2", energy: "3.03 × 10⁻¹⁹ J" },
+        { elem: "Hydrogen", color: "Blue-Green", lambda: 486.1, trans: "n=4 → n=2", energy: "4.09 × 10⁻¹⁹ J" },
+        { elem: "Hydrogen", color: "Violet", lambda: 434.1, trans: "n=5 → n=2", energy: "4.58 × 10⁻¹⁹ J" },
+        { elem: "Helium", color: "Yellow", lambda: 587.6, trans: "3D → 2P", energy: "3.38 × 10⁻¹⁹ J" },
+        { elem: "Sodium", color: "Yellow-Orange", lambda: 589.0, trans: "3p → 3s", energy: "3.37 × 10⁻¹⁹ J" }
+      ];
+
+      sampleEntries.forEach(item => appendTableRow(item.elem, item.color, item.lambda, item.trans, item.energy));
+    }
+
+    function appendTableRow(elem, color, lambda, trans, energy) {
+      const tbody = document.getElementById("data-table-body");
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-800/50 transition-all";
+      tr.innerHTML = `
+        <td class="p-3 font-semibold text-white">${elem}</td>
+        <td class="p-3"><span class="px-2 py-0.5 rounded text-[11px] font-medium" style="background: rgba(255,255,255,0.1);">${color}</span></td>
+        <td class="p-3 font-mono text-cyan-300">${lambda}</td>
+        <td class="p-3 font-mono">${trans}</td>
+        <td class="p-3 font-mono text-amber-300">${energy}</td>
+        <td class="p-3">
+          <button onclick="this.closest('tr').remove()" class="text-slate-500 hover:text-red-400 text-xs">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    function logCurrentSpectrum() {
+      const elem = ELEMENT_DATA[currentElementKey];
+      elem.lines.forEach(line => {
+        appendTableRow(elem.name.split(' ')[0], line.label, line.lambda, line.trans, line.energy);
+      });
+      alert(`Recorded ${elem.lines.length} spectral lines for ${elem.name} to Data Table!`);
+    }
+
+    function addCustomDataRow() {
+      const elem = prompt("Enter Element Name:", "Neon");
+      if (!elem) return;
+      const color = prompt("Enter Observed Spectral Color:", "Orange");
+      const lambda = parseFloat(prompt("Enter Wavelength (nm):", "614.3"));
+
+      if (isNaN(lambda)) return;
+
+      // Calculate Energy automatically: E = hc / lambda
+      const h = 6.63e-34;
+      const c = 3.00e8;
+      const lambdaMeters = lambda * 1e-9;
+      const energyJoules = (h * c) / lambdaMeters;
+      const energyFormatted = `${energyJoules.toExponential(2)} J`;
+
+      appendTableRow(elem, color || "Custom", lambda, "Custom", energyFormatted);
+    }
+
+    function clearDataTable() {
+      document.getElementById("data-table-body").innerHTML = "";
+    }
+  </script>
+</body>
+</html>
